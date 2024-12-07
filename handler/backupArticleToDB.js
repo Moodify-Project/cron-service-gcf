@@ -1,11 +1,29 @@
 import axios from "axios";
-// import myCache from "../configs/myCache";
 import connection from "../database/connection.js";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4 } from "uuid";
+import { createClient } from "redis";
+
+export const redisClient = async () => {
+    return await createClient({
+        url: `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT}`,
+        password: process.env.REDIS_PASSWORD
+    })
+      .on('error', err => {
+        // console.log('Redis Client Error', err)
+        throw new Error(err.message);
+      })
+      .connect();
+}
 
 export const backupArticleToDB = async (req, res) => {
+    const client = await redisClient();
+    const articles = await client.keys('article-*');
+    for (const article of articles) {
+      await client.del(article);
+    }
+
     const sqlArticleRows = 'SELECT * FROM article'
-    const API_KEY_NEWS = process.env.API_KEY_NEWS || 'a67388915ccc4bb186579c7443fbc737';
+    const API_KEY_NEWS = process.env.API_KEY_NEWS;
 
     const countArticleRows = await new Promise((resolve, reject) => {
         connection.query(sqlArticleRows, (err, rows) => {
@@ -37,28 +55,6 @@ export const backupArticleToDB = async (req, res) => {
     axios.get(url)
         .then( async (response) => {
             const { status, totalResults, articles } = response.data;
-            // const getDozens = totalResults.toString();
-            // const dozensIndex = getDozens.slice(0, getDozens.length - 1);
-
-            // interface News {
-            //     source: {
-            //         id: undefined,
-            //         name: string,
-            //     };
-            //     author: string;
-            //     title: string;
-            //     description: string;
-            //     url: string;
-            //     urlToImage: string;
-            //     publishedAt: string;
-            //     content: string;
-            // }
-
-            if (articles.totalResults === 0) {
-                //
-            }
-
-            // console.log(articles);
 
             const values = articles.map((article) => [
                 uuidv4(),
@@ -68,7 +64,7 @@ export const backupArticleToDB = async (req, res) => {
                 article.description || null, 
                 article.url || null, 
                 article.urlToImage || null, 
-                article.publishedAt || null,
+                new Date(article.publishedAt).toISOString().slice(0, 19).replace('T', ' ') || null,
                 article.content || null
             ]);
 
@@ -91,7 +87,7 @@ export const backupArticleToDB = async (req, res) => {
             }
 
             return res.status(200).json({
-                status: false,
+                status: true,
                 message: 'new article successfully created', 
             })
         })
@@ -103,5 +99,3 @@ export const backupArticleToDB = async (req, res) => {
             });
         });
 }
-
-// export default getNews;

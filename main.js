@@ -2,6 +2,9 @@ import express from 'express';
 import { fetchFromJournal } from './handler/fetchFromJournal.js';
 import connection from './database/connection.js';
 import { backupArticleToDB } from './handler/backupArticleToDB.js';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const app = express();
 const port = 3000;
@@ -16,8 +19,6 @@ app.get('/', (req, res) => {
 
 app.get('/fetch', fetchFromJournal);
 app.post('/backup-article', backupArticleToDB);
-
-// connection.end();
 
 export const api = app;
 
